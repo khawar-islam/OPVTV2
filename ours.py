@@ -43,6 +43,7 @@ class DWConv(nn.Module):
         # x= x.flatten(2).shape===>torch.Size([1, 256, 784])
         # x.flatten(2).transpose(1, 2).shape==> torch.Size([1, 784, 256])
         x = x.flatten(2).transpose(1, 2)
+
         # x = self.spatial_pyramid_pool(previous_conv_size=x.shape)
         return x
 
@@ -98,12 +99,20 @@ class Mlp(nn.Module):
         if self.linear:
             x = self.relu(x)
 
-        # x.shape=>torch.Size([1, 784, 256])
         x = self.dwconv(x, H, W)
+        print(x.shape)  # x.shape=>torch.Size([1, 784, 256])
+
         x = self.act(x)
+        print(x.shape)  # torch.Size([1, 784, 256])
+
         x = self.drop(x)
-        x = self.fc2(x)
+        print(x.shape)  # torch.Size([1, 784, 256])
+
+        x = self.fc2(x)  # torch.Size([1, 784, 64])
+        print(x.shape)
+
         x = self.drop(x)
+        print(x.shape)  # torch.Size([1, 784, 64])
         return x
 
 
