@@ -28,21 +28,25 @@ class DWConv(nn.Module):
         # bias=True)
 
     def forward(self, x, H, W):
-        # x.shape=======>torch.Size([1, 784, 256]), H=28, W=28
-        print(x.shape)
+        print(x.shape)  # x.shape=======>torch.Size([1, 784, 256]), H=28, W=28
 
         # B=1, C=256, B=784,
         B, N, C = x.shape
+        print(x.shape)  # torch.Size([1, 784, 256]), B=1,C=256,B=784
 
         # The view function is meant to reshape the tensor. x.shape==> torch.Size([1, 256, 28, 28])
         x = x.transpose(1, 2).view(B, C, H, W)
+        print(x.shape)  # torch.Size([1, 256, 28, 28])
 
         # x.shape==> torch.Size([1, 256, 28, 28]), x.shape remain same before and after depthwise convolutions
-        x = self.dwconv(x)
+        x = self.dwconv(x)  # torch.Size([1, 256, 28, 28])
+
+        print(x.shape)
 
         # x= x.flatten(2).shape===>torch.Size([1, 256, 784])
         # x.flatten(2).transpose(1, 2).shape==> torch.Size([1, 784, 256])
         x = x.flatten(2).transpose(1, 2)
+        print(x.shape)
 
         # x = self.spatial_pyramid_pool(previous_conv_size=x.shape)
         return x
@@ -214,6 +218,7 @@ class Block(nn.Module):
             dim,
             num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale,
             attn_drop=attn_drop, proj_drop=drop, sr_ratio=sr_ratio, linear=linear)
+
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = norm_layer(dim)
@@ -241,8 +246,13 @@ class Block(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x, H, W):
+        print(x.shape, H, W)  # torch.Size([1, 784, 64]) 28 28
+
         x = x + self.drop_path(self.attn(self.norm1(x), H, W))
-        x = x + self.drop_path(self.mlp(self.norm2(x), H, W))
+        print(x.shape)  # torch.Size([1, 784, 64])
+
+        x = x + self.drop_path(self.mlp(self.norm2(x), H, W)) #here we give H,W to mlp block
+        print(x.shape) # torch.Size([1, 784, 64])
 
         return x
 
@@ -254,14 +264,28 @@ class OverlapPatchEmbed(nn.Module):
     def __init__(self, img_size=112, patch_size=8, stride=4, in_chans=3, embed_dim=768):
         super().__init__()
         img_size = to_2tuple(img_size)
+        print("Image Size:", img_size)  # (112, 112)
+
         patch_size = to_2tuple(patch_size)
+        print("Patch Size:", patch_size)  # (7, 7)
 
         self.img_size = img_size
+        print("Image Size:", self.img_size)  # (112, 112)
+
         self.patch_size = patch_size
+        print("Patch Size:", self.patch_size)  # (7, 7)
+
         self.H, self.W = img_size[0] // patch_size[0], img_size[1] // patch_size[1]
+        print(self.H, self.W, img_size[0], img_size[0] // patch_size[0],
+              img_size[1] // patch_size[1])  # 16 16 112 16 16
+
         self.num_patches = self.H * self.W
+        print("Number of WxH:", self.num_patches)  # 256
+
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=stride,
                               padding=(patch_size[0] // 2, patch_size[1] // 2))
+        print(self.proj)  # Conv2d(3, 64, kernel_size=(7, 7), stride=(4, 4), padding=(3, 3))
+
         self.norm = nn.LayerNorm(embed_dim)
 
         self.apply(self._init_weights)
@@ -282,10 +306,19 @@ class OverlapPatchEmbed(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
+        print(x.shape)  # torch.Size([1, 3, 112, 112])
+
         x = self.proj(x)
+        print(x.shape)  # torch.Size([1, 64, 28, 28])
+
         _, _, H, W = x.shape
+        print(_, _, H, W)  # 64 64 28 28
+
         x = x.flatten(2).transpose(1, 2)
+        print(x.shape)  # torch.Size([1, 784, 64])
+
         x = self.norm(x)
+        print(x.shape)  # torch.Size([1, 784, 64])
 
         return x, H, W
 
@@ -303,13 +336,17 @@ class PyramidVisionTransformerV2(nn.Module):
         self.depths = depths
         self.num_stages = num_stages
 
+        print("self.patch_embed")
         # patch_embed
         self.patch_embed1 = OverlapPatchEmbed(img_size=img_size, patch_size=7, stride=4, in_chans=in_chans,
                                               embed_dim=embed_dims[0])
+        print("self.patch_embed2")
         self.patch_embed2 = OverlapPatchEmbed(img_size=img_size // 4, patch_size=3, stride=2, in_chans=embed_dims[0],
                                               embed_dim=embed_dims[1])
+        print("self.patch_embed3")
         self.patch_embed3 = OverlapPatchEmbed(img_size=img_size // 8, patch_size=3, stride=2, in_chans=embed_dims[1],
                                               embed_dim=embed_dims[2])
+        print("self.patch_embed4")
         self.patch_embed4 = OverlapPatchEmbed(img_size=img_size // 16, patch_size=3, stride=2, in_chans=embed_dims[2],
                                               embed_dim=embed_dims[3])
 
