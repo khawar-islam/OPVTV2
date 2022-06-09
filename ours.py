@@ -127,28 +127,52 @@ class Attention(nn.Module):
         assert dim % num_heads == 0, f"dim {dim} should be divided by num_heads {num_heads}."
 
         self.dim = dim
+        print(self.dim)  # 64
+
         self.num_heads = num_heads
+        print(self.num_heads)  # 1
+
         head_dim = dim // num_heads
+        print(head_dim)  # 64
 
         self.scale = qk_scale or head_dim ** -0.5
+        print(self.scale)  # the value of qk_scale is "Empty",
+
         self.q = nn.Linear(dim, dim, bias=qkv_bias)
+        print(self.q)  # Linear(in_features=64, out_features=64, bias=False)
+
         self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias)
+        print(self.kv)  # Linear(in_features=64, out_features=128, bias=False)
 
         self.attn_drop = nn.Dropout(attn_drop)
+        print(self.attn_drop)  # Dropout(p=0.0, inplace=False)
+
         self.proj = nn.Linear(dim, dim)
+        print(self.proj)  # Linear(in_features=64, out_features=64, bias=True)
+
         self.proj_drop = nn.Dropout(proj_drop)
+        print(proj_drop)  # 0.0
 
         self.linear = linear
+        print(self.linear)  # True
+
         self.sr_ratio = sr_ratio
+        print(self.sr_ratio)  # 8
+
         if not linear:
             if sr_ratio > 1:
                 self.sr = nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio)
                 self.norm = nn.LayerNorm(dim)
         else:
             self.pool = nn.AdaptiveMaxPool2d(7)
-            # self.sr = AttentionConv(dim, dim, kernel_size=1, stride=1)
+            print(self.pool)  # AdaptiveMaxPool2d(output_size=7)
+
             self.sr = nn.Conv2d(dim, dim, kernel_size=1, stride=1)
+            print(self.sr)  # Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+
             self.norm = nn.LayerNorm(dim)
+            print(self.norm)  # LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+
             self.act = nn.GELU()
         self.apply(self._init_weights)
 
@@ -168,8 +192,17 @@ class Attention(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x, H, W, mask=None):
-        B, N, C = x.shape
+        print(x.shape)  # torch.Size([1, 784, 64])
+        print(H, W)  # 28 28
+
+        B, N, C = x.shape  # c=64,b=1,n=784
+
+        print(x.shape)  # torch.Size([1, 784, 64])
+        # self.q= Linear(in_features=64, out_features=64, bias=False), self.num_heads=1,C // self.num_heads=64
+        # self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).shape=====>torch.Size([1, 784, 1, 64])
+
         q = self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
+        print(q.shape)  # torch.Size([1, 1, 784, 64])
 
         if not self.linear:
             if self.sr_ratio > 1:
@@ -180,14 +213,29 @@ class Attention(nn.Module):
             else:
                 kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         else:
+            print(x.shape) #torch.Size([1, 784, 64])
+
             x_ = x.permute(0, 2, 1).reshape(B, C, H, W)
+            print(x_.shape) # torch.Size([1, 64, 28, 28])
+
             x_ = self.sr(self.pool(x_)).reshape(B, C, -1).permute(0, 2, 1)
+            print(x_.shape) # torch.Size([1, 49, 64])
+
             x_ = self.norm(x_)
+            print(x_.shape) # torch.Size([1, 49, 64])
+
             x_ = self.act(x_)
+            print(x_.shape) # torch.Size([1, 49, 64])
+
             kv = self.kv(x_).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+            print(kv.shape) # torch.Size([2, 1, 1, 49, 64])
+
         k, v = kv[0], kv[1]
+        print(k.shape) # torch.Size([1, 1, 49, 64])
+        print(v.shape) # torch.Size([1, 1, 49, 64])
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
+        print(attn.shape) #torch.Size([1, 1, 784, 49])
 
         mask_value = -torch.finfo(attn.dtype).max
         # embed()
@@ -199,11 +247,18 @@ class Attention(nn.Module):
             del mask
 
         attn = attn.softmax(dim=-1)
+        print(attn.shape)
+
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        print(x.shape)
+
         x = self.proj(x)
+        print(x.shape)
+
         x = self.proj_drop(x)
+        print(x.shape) # torch.Size([1, 784, 64])
 
         return x
 
@@ -211,7 +266,7 @@ class Attention(nn.Module):
 class Block(nn.Module):
 
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
-                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, sr_ratio=1, linear=False):
+                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, sr_ratio=1, linear=True):
         super().__init__()
         self.norm1 = norm_layer(dim)
         self.attn = Attention(
@@ -251,8 +306,8 @@ class Block(nn.Module):
         x = x + self.drop_path(self.attn(self.norm1(x), H, W))
         print(x.shape)  # torch.Size([1, 784, 64])
 
-        x = x + self.drop_path(self.mlp(self.norm2(x), H, W)) #here we give H,W to mlp block
-        print(x.shape) # torch.Size([1, 784, 64])
+        x = x + self.drop_path(self.mlp(self.norm2(x), H, W))  # here we give H,W to mlp block
+        print(x.shape)  # torch.Size([1, 784, 64])
 
         return x
 
@@ -328,7 +383,7 @@ class PyramidVisionTransformerV2(nn.Module):
                  embed_dims=[64, 128, 256, 512],
                  num_heads=[1, 2, 4, 8], mlp_ratios=[4, 4, 4, 4], qkv_bias=False, qk_scale=None, drop_rate=0.,
                  attn_drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm,
-                 depths=[3, 4, 6, 3], sr_ratios=[8, 4, 2, 1], num_stages=4, linear=False):
+                 depths=[3, 4, 6, 3], sr_ratios=[8, 4, 2, 1], num_stages=4, linear=True):
 
         super().__init__()
 
