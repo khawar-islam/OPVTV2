@@ -167,6 +167,14 @@ class Attention(nn.Module):
             self.pool = nn.AdaptiveMaxPool2d(7)
             print(self.pool)  # AdaptiveMaxPool2d(output_size=7)
 
+            # In average-pooling or max-pooling, you essentially set the stride and kernel-size by your own,
+            # setting them as hyper-parameters. You will have to re-configure them if you happen to change your input
+            # size. 
+            #
+            # In Adaptive Pooling on the other hand, we specify the output size instead. And the stride and
+            # kernel-size are automatically selected to adapt to the needs. The following equations are used to
+            # calculate the value in the source code.
+
             self.sr = nn.Conv2d(dim, dim, kernel_size=1, stride=1)
             print(self.sr)  # Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
 
@@ -213,29 +221,29 @@ class Attention(nn.Module):
             else:
                 kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         else:
-            print(x.shape) #torch.Size([1, 784, 64])
+            print(x.shape)  # torch.Size([1, 784, 64])
 
             x_ = x.permute(0, 2, 1).reshape(B, C, H, W)
-            print(x_.shape) # torch.Size([1, 64, 28, 28])
+            print(x_.shape)  # torch.Size([1, 64, 28, 28])
 
             x_ = self.sr(self.pool(x_)).reshape(B, C, -1).permute(0, 2, 1)
-            print(x_.shape) # torch.Size([1, 49, 64])
+            print(x_.shape)  # torch.Size([1, 49, 64])
 
             x_ = self.norm(x_)
-            print(x_.shape) # torch.Size([1, 49, 64])
+            print(x_.shape)  # torch.Size([1, 49, 64])
 
             x_ = self.act(x_)
-            print(x_.shape) # torch.Size([1, 49, 64])
+            print(x_.shape)  # torch.Size([1, 49, 64])
 
             kv = self.kv(x_).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-            print(kv.shape) # torch.Size([2, 1, 1, 49, 64])
+            print(kv.shape)  # torch.Size([2, 1, 1, 49, 64])
 
         k, v = kv[0], kv[1]
-        print(k.shape) # torch.Size([1, 1, 49, 64])
-        print(v.shape) # torch.Size([1, 1, 49, 64])
+        print(k.shape)  # torch.Size([1, 1, 49, 64])
+        print(v.shape)  # torch.Size([1, 1, 49, 64])
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
-        print(attn.shape) #torch.Size([1, 1, 784, 49])
+        print(attn.shape)  # torch.Size([1, 1, 784, 49])
 
         mask_value = -torch.finfo(attn.dtype).max
         # embed()
@@ -258,7 +266,7 @@ class Attention(nn.Module):
         print(x.shape)
 
         x = self.proj_drop(x)
-        print(x.shape) # torch.Size([1, 784, 64])
+        print(x.shape)  # torch.Size([1, 784, 64])
 
         return x
 
