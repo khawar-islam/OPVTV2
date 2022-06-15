@@ -169,7 +169,7 @@ class Attention(nn.Module):
 
             # In average-pooling or max-pooling, you essentially set the stride and kernel-size by your own,
             # setting them as hyper-parameters. You will have to re-configure them if you happen to change your input
-            # size. 
+            # size.
             #
             # In Adaptive Pooling on the other hand, we specify the output size instead. And the stride and
             # kernel-size are automatically selected to adapt to the needs. The following equations are used to
@@ -327,27 +327,26 @@ class OverlapPatchEmbed(nn.Module):
     def __init__(self, img_size=112, patch_size=8, stride=4, in_chans=3, embed_dim=768):
         super().__init__()
         img_size = to_2tuple(img_size)
-        print("Image Size:", img_size)  # (112, 112)
+        # print("Image Size:", img_size)  # (112, 112)
 
         patch_size = to_2tuple(patch_size)
-        print("Patch Size:", patch_size)  # (7, 7)
+        # print("Patch Size:", patch_size)  # (7, 7)
 
         self.img_size = img_size
-        print("Image Size:", self.img_size)  # (112, 112)
+        # print("Image Size:", self.img_size)  # (112, 112)
 
         self.patch_size = patch_size
-        print("Patch Size:", self.patch_size)  # (7, 7)
+        # print("Patch Size:", self.patch_size)  # (7, 7)
 
         self.H, self.W = img_size[0] // patch_size[0], img_size[1] // patch_size[1]
-        print(self.H, self.W, img_size[0], img_size[0] // patch_size[0],
-              img_size[1] // patch_size[1])  # 16 16 112 16 16
+        # print(self.H, self.W, img_size[0], img_size[0] // patch_size[0], img_size[1] // patch_size[1])  # 16 16 112 16 16
 
         self.num_patches = self.H * self.W
-        print("Number of WxH:", self.num_patches)  # 256
+        # print("Number of WxH:", self.num_patches)  # 256
 
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=stride,
                               padding=(patch_size[0] // 2, patch_size[1] // 2))
-        print(self.proj)  # Conv2d(3, 64, kernel_size=(7, 7), stride=(4, 4), padding=(3, 3))
+        # print(self.proj)  # Conv2d(3, 64, kernel_size=(7, 7), stride=(4, 4), padding=(3, 3))
 
         self.norm = nn.LayerNorm(embed_dim)
 
@@ -517,34 +516,84 @@ class PyramidVisionTransformerV2(nn.Module):
     #     self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
     #
     def forward_features(self, x):
-
-        # output of x, torch.Size([1, 3, 112, 112])
+        '''Returns a contiguous tensor containing the same data as self tensor. If self tensor is contiguous,
+        this function returns the self tensor. '''
         B = x.shape[0]
-        # outs = []
 
-        # stage 1
+        print(x.shape)
+        # torch.Size([1, 3, 112, 112])
+
+        '''##########################################  stage 1'''
         x, H, W = self.patch_embed1(x)
-        for i, blk in enumerate(self.block1):
-            x = blk(x, H, W)
-        x = self.norm1(x)
-        x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        print(x.shape)
+        # torch.Size([1, 784, 64]), H=28, W=28
 
-        # stage 2
+        print(H, W)
+        # 28 28
+
+        for i, blk in enumerate(self.block1):
+            # print(x.shape)  # torch.Size([1, 784, 64])
+            x = blk(x, H, W)
+
+        x = self.norm1(x)
+        print(x.shape)
+        # torch.Size([1, 784, 64])
+
+        x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        print(x.shape)
+        # torch.Size([1, 64, 28, 28])
+
+        '''##########################################  stage 2'''
+        print(x.shape)
+        # torch.Size([1, 64, 28, 28])
+
         x, H, W = self.patch_embed2(x)
+        print("stage 2", x.shape)
+        # torch.Size([1, 196, 128])
+
+        print("stage 2", H, W)
+        # 14 14
+
         for i, blk in enumerate(self.block2):
             x = blk(x, H, W)
+            print("stage 2", x.shape)
+            # torch.Size([1, 196, 128])
         x = self.norm2(x)
-        x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        print("stage 2", x.shape)
+        # torch.Size([1, 196, 128])
 
-        # stage 3
+        x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        print("stage 2", x.shape)
+        # torch.Size([1, 128, 14, 14])
+
+        '''################################################### stage 3'''
+        print(x.shape)
+        # torch.Size([1, 128, 14, 14])
+
         x, H, W = self.patch_embed3(x)
+        print("stage 3:", x.shape)
+        # stage 3 torch.Size([1, 49, 256])
+        print(H, W)
+        # 7 7
+
         for i, blk in enumerate(self.block3):
             x = blk(x, H, W)
         x = self.norm3(x)
+        print("self.norm3(x):", x.shape)  # self.norm3(x): torch.Size([1, 49, 256])
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        print("stage 3:", x.shape)  # stage 3: torch.Size([1, 256, 7, 7])
 
-        # stage 4
+        '''#################################################### stage 4'''
+        print("stage 4:", x.shape)
+        # stage 4: torch.Size([1, 256, 7, 7])
+
         x, H, W = self.patch_embed4(x)
+        print("stage 4:", x.shape)
+        # stage 4: torch.Size([1, 16, 512])
+
+        print("stage 4:", H, W)
+        # H=4, W=4
+
         for i, blk in enumerate(self.block4):
             x = blk(x, H, W)
         x = self.norm4(x)
