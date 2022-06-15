@@ -516,8 +516,8 @@ class PyramidVisionTransformerV2(nn.Module):
     #     self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
     #
     def forward_features(self, x):
-        '''Returns a contiguous tensor containing the same data as self tensor. If self tensor is contiguous,
-        this function returns the self tensor. '''
+        """Returns a contiguous tensor containing the same data as self tensor. If self tensor is contiguous,
+        this function returns the self tensor. """
         B = x.shape[0]
 
         print(x.shape)
@@ -534,12 +534,13 @@ class PyramidVisionTransformerV2(nn.Module):
         for i, blk in enumerate(self.block1):
             # print(x.shape)  # torch.Size([1, 784, 64])
             x = blk(x, H, W)
-
         x = self.norm1(x)
         print(x.shape)
         # torch.Size([1, 784, 64])
 
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        print(x.reshape(B, H, W, -1).shape)
+        # torch.Size([1, 28, 28, 64])
         print(x.shape)
         # torch.Size([1, 64, 28, 28])
 
@@ -550,7 +551,6 @@ class PyramidVisionTransformerV2(nn.Module):
         x, H, W = self.patch_embed2(x)
         print("stage 2", x.shape)
         # torch.Size([1, 196, 128])
-
         print("stage 2", H, W)
         # 14 14
 
@@ -581,7 +581,8 @@ class PyramidVisionTransformerV2(nn.Module):
         x = self.norm3(x)
         print("self.norm3(x):", x.shape)  # self.norm3(x): torch.Size([1, 49, 256])
         x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
-        print("stage 3:", x.shape)  # stage 3: torch.Size([1, 256, 7, 7])
+        print("stage 3:", x.shape)
+        # stage 3: torch.Size([1, 256, 7, 7])
 
         '''#################################################### stage 4'''
         print("stage 4:", x.shape)
