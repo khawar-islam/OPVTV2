@@ -42,7 +42,7 @@ transforms = T.Compose(transforms)
 
 # Demo Image
 img = PIL.Image.open('Adam_Brody_233.png')
-#img = img.resize((112, 112), Image.ANTIALIAS)
+# img = img.resize((112, 112), Image.ANTIALIAS)
 img_tensor = transforms(img).unsqueeze(0)
 print(img_tensor.shape)
 
@@ -55,19 +55,28 @@ plt.imshow(img)
 
 # 1. Split Image into Patches The input image is split into N patches (N = 14 x 14 for ViT-Base) and converted to
 # D=768=16x16x3 embedding vectors by learnable 2D convolution: Conv2d(3, 768, kernel_size=(16, 16), stride=(16, 16))
-patches = model.patch_embed1(img_tensor)  # patch embedding convolution
+
+# patch embed 1
+# patches = model.patch_embed1(img_tensor)  # patch embedding convolution
+
+# patch embed 2
+model.patch_embed3.img_size = 112 // 16
+model.patch_embed3.patch_size = 3
+model.patch_embed3.stride = 2
+model.patch_embed3.in_chans = 256
+model.patch_embed3.embed_dim = 512
 
 print("Image tensor: ", img_tensor.shape)
 # Image tensor:  torch.Size([1, 3, 112, 112])
 
-# print("Patch embeddings: ", patches.shape)
+print("Patch embeddings: ", model.patch_embed4.num_patches)
 # Patch embeddings:  torch.Size([1, 196, 768])
 
 # This is NOT a part of the pipeline.
 # Actually the image is divided into patch embeddings by Conv2d
 # with stride=(16, 16) shown above.
 fig = plt.figure(figsize=(8, 8))
-fig.suptitle("Visualization of patch_embed1", fontsize=24)
+fig.suptitle("Visualization of patch_embed4", fontsize=24)
 fig.add_axes()
 img = np.asarray(img)
 
@@ -83,14 +92,14 @@ img = np.asarray(img)
 #
 # plt.savefig('patch_embed1.png', figsize=(112, 112))
 
-# Patch stage 1
-for i in range(0, 784):  # 28 28 (number of patches in width and height) 112/4=28
-    x = i % 28
-    y = i // 28
-    patch = img[y * 4:(y + 1) * 4, x * 4:(x + 1) * 4]
-    ax = fig.add_subplot(28, 28, i + 1)
+# Patch stage 2
+for i in range(0, 4):  # 28 28 (number of patches in width and height) 112/4=28
+    x = i % 7
+    y = i // 7
+    patch = img[y * 2:(y + 1) * 2, x * 2:(x + 1) * 2]
+    ax = fig.add_subplot(7, 7, i + 1)
     ax.axes.get_xaxis().set_visible(False)
     ax.axes.get_yaxis().set_visible(False)
     ax.imshow(patch)
 
-plt.savefig('patch_embed1.png', figsize=(112, 112))
+plt.savefig('patch_embed4.png', figsize=(112, 112))
