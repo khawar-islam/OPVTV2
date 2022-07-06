@@ -11,7 +11,7 @@ import scipy.misc
 from PIL import Image
 import json
 
-from vit_pytorch.pvt_v2 import PyramidVisionTransformerV2
+from vit_pytorch.ours import Ours_FPVT
 from vit_pytorch.vits_face import ViTs_face
 
 transform = transforms.Compose([
@@ -20,20 +20,20 @@ transform = transforms.Compose([
     transforms.Normalize(mean=0., std=1.)
 ])
 
-image = Image.open(str('/home/cvpr/Documents/OPVT/Adam_Brody_233.png'))
+image = Image.open(str('/home/cvpr/Documents/OPVT/skin-original.jpg'))
 plt.imshow(image)
 
-model = PyramidVisionTransformerV2(
+model = Ours_FPVT(
     loss_type='ArcMarginProduct',
     GPU_ID=0,
-    patch_size=16,
-    img_size=224,
+    patch_size=8,
+    img_size=112,
     depths=[3, 4, 18, 3],
     num_classes=526,
     in_chans=3
 )
-model.load_state_dict(torch.load('/home/cvpr/Documents/OPVT/results/ours_224'
-                                 '/Backbone_PVTV2_Epoch_1_Batch_2860_Time_2022-06-24-01-00_checkpoint.pth'))
+model.load_state_dict(torch.load('/home/cvpr/Documents/OPVT/results/FPVT/Backbone_PVTV2_Epoch_3_Batch_2440_Time_2022'
+                                 '-07-06-15-35_checkpoint.pth'))
 
 #model = models.resnet18(pretrained=True)
 print(model)
@@ -69,6 +69,7 @@ for i in range(len(model_children)):
         model_weights.append(weigh.weight)
         conv_layers.append(model_children[i].proj)
 
+
 print(f"Total convolution layers: {counter}")
 print("conv_layers")
 
@@ -93,7 +94,7 @@ for layer in conv_layers[0:]:
 print(len(outputs))
 #print feature_maps
 for feature_map in outputs:
-    print(feature_map)
+    print("")
 
 
 processed = []
@@ -105,11 +106,11 @@ for feature_map in outputs:
 for fm in processed:
     print(fm.shape)
 
-fig = plt.figure(figsize=(30, 50))
+fig = plt.figure(figsize=(50, 50))
 for i in range(len(processed)):
-    a = fig.add_subplot(5, 4, i+1)
+    a = fig.add_subplot(2, 4, i+1)
     imgplot = plt.imshow(processed[i])
     a.axis("off")
-    a.set_title(names[i].split('(')[0], fontsize=30)
+    a.set_title(names[i].split('(')[0], fontsize=20)
 plt.savefig(str('feature_maps.jpg'), bbox_inches='tight')
 plt.show()
